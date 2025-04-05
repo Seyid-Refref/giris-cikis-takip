@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Personel Giriş-Çıkış Takibi</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    input, button { padding: 8px; margin-top: 10px; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background: #333; color: white; }
+  </style>
+</head>
+<body>
+  <h2>Excel Yükleyerek Personel Verilerini Göster</h2>
+  <input type="file" id="excelInput" accept=".xlsx" />
+  <br><br>
+  <label>Kart Numaranızı Girin: </label>
+  <input type="text" id="kartInput" placeholder="Örn: 558">
+  <button onclick="filtrele()">Göster</button>
+
+  <table id="sonuclar" style="display: none;">
+    <thead>
+      <tr>
+        <th>Ad Soyad</th>
+        <th>Tarih</th>
+        <th>Giriş Saati</th>
+        <th>Çıkış Saati</th>
+        <th>Giriş Cihazı</th>
+        <th>Çıkış Cihazı</th>
+      </tr>
+    </thead>
+    <tbody id="veriBody"></tbody>
+  </table>
+
+  <script>
+    let veriler = [];
+
+    document.getElementById('excelInput').addEventListener('change', function (e) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        veriler = [];
+        let ad = '', soyad = '', kart = '';
+
+        for (let i = 0; i < json.length; i++) {
+          const row = json[i];
+
+          if (row[0] === 'Kart') {
+            kart = row[1];
+            soyad = json[i + 1]?.[1] || '';
+            for (let j = i; j < i + 10; j++) {
+              if (json[j]?.[8] === 'Personel Adı') {
+                ad = json[j]?.[9] || '';
+                break;
+              }
+            }
+          }
+
+          if (typeof row[0] === 'string' && row[0].includes(".")) {
+            veriler.push({
+              kart: String(kart),
+              adsoyad: `${ad} ${soyad}`.trim(),
+              tarih: row[0],
+              giris: row[1] || '',
+              cikis: row[4] || '',
+              girisCihaz: row[3] || '',
+              cikisCihaz: row[6] || ''
+            });
+          }
+        }
+
+        alert("Dosya başarıyla yüklendi! Şimdi kart numarası ile arama yapabilirsiniz.");
+      };
+      reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    function filtrele() {
+      const input = document.getElementById("kartInput").value.trim();
+      const body = document.getElementById("veriBody");
+      const tablo = document.getElementById("sonuclar");
+      body.innerHTML = "";
+
+      const sonuc = veriler.filter(v => v.kart === input);
+
+      if (sonuc.length === 0) {
+        alert("Bu kart numarasına ait kayıt bulunamadı.");
+        tablo.style.display = "none";
+        return;
+      }
+
+      sonuc.forEach(kayit => {
+        const satir = `<tr>
+          <td>${kayit.adsoyad}</td>
+          <td>${kayit.tarih}</td>
+          <td>${kayit.giris}</td>
+          <td>${kayit.cikis}</td>
+          <td>${kayit.girisCihaz}</td>
+          <td>${kayit.cikisCihaz}</td>
+        </tr>`;
+        body.innerHTML += satir;
+      });
+
+      tablo.style.display = "table";
+    }
+  </script>
+</body>
+</html>
